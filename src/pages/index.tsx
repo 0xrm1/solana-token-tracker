@@ -1,137 +1,161 @@
-import { useState, useEffect } from 'react';
-import Head from 'next/head';
+import { Watchlist } from '@/components/Watchlist';
+import { BuySellModule } from '@/components/BuySellModule';
+import { Geist } from 'next/font/google';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { Connection, PublicKey, clusterApiUrl } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import Link from 'next/link';
 
-// Wallet context provider bileşeni
-import WalletContextProvider from '@/components/WalletContextProvider';
-
-// Bileşenler
-import TokenList from '@/components/TokenList';
-import TokenDetails from '@/components/TokenDetails';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
+const geistSans = Geist({
+  subsets: ['latin'],
+  display: 'swap',
+});
 
 export default function Home() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [username, setUsername] = useState('');
   const router = useRouter();
-  const { connected, publicKey } = useWallet();
-  const [tokens, setTokens] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [selectedToken, setSelectedToken] = useState(null);
-
-  // Kullanıcının token'larını getir
+  
   useEffect(() => {
-    const fetchTokens = async () => {
-      if (!connected || !publicKey) return;
-      
+    // Kullanıcı girişi kontrolü
+    const token = localStorage.getItem('token');
+    const userStr = localStorage.getItem('user');
+    
+    if (token && userStr) {
       try {
-        setLoading(true);
-        setError('');
-        
-        // Solana mainnet bağlantısı
-        const connection = new Connection(clusterApiUrl('mainnet-beta'));
-        
-        // Token hesaplarını getir
-        const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
-          publicKey,
-          { programId: TOKEN_PROGRAM_ID }
-        );
-        
-        // Token verilerini düzenle
-        const tokenData = tokenAccounts.value.map((account) => {
-          const parsedInfo = account.account.data.parsed.info;
-          const tokenAmount = parsedInfo.tokenAmount;
-          
-          return {
-            mint: parsedInfo.mint,
-            owner: parsedInfo.owner,
-            amount: tokenAmount.uiAmount,
-            decimals: tokenAmount.decimals,
-            address: account.pubkey.toBase58(),
-          };
-        });
-        
-        setTokens(tokenData);
+        const user = JSON.parse(userStr);
+        setIsLoggedIn(true);
+        setUsername(user.username || '');
       } catch (err) {
-        console.error('Token bilgileri alınırken hata oluştu:', err);
-        setError('Token bilgileri alınamadı. Lütfen daha sonra tekrar deneyin.');
-      } finally {
-        setLoading(false);
+        console.error('User data parsing error:', err);
       }
-    };
-
-    fetchTokens();
-  }, [connected, publicKey]);
-
-  // Token seçildiğinde detay sayfasına yönlendir
-  const handleTokenSelect = (token) => {
-    setSelectedToken(token);
-    router.push(`/token/${token.mint}`);
+    }
+  }, []);
+  
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setIsLoggedIn(false);
+    setUsername('');
   };
-
+  
   return (
-    <WalletContextProvider>
-      <div className="min-h-screen bg-gradient-to-b from-gray-900 to-black text-white">
-        <Head>
-          <title>Solana Token Tracker</title>
-          <meta name="description" content="Track your Solana tokens and NFTs" />
-          <link rel="icon" href="/favicon.ico" />
-        </Head>
-
-        <Header />
-
-        <main className="container mx-auto px-4 py-8">
-          <div className="flex flex-col items-center justify-center mb-12">
-            <h1 className="text-4xl md:text-6xl font-bold mb-4 text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-red-500">
-              Solana Token Tracker
-            </h1>
-            <p className="text-xl text-gray-300 text-center max-w-2xl mb-8">
-              Cüzdanınızdaki Solana token'larını takip edin, değerlerini görüntüleyin ve transferlerinizi yönetin.
-            </p>
+    <div className={`${geistSans.className} min-h-screen bg-[#1b2839] text-white`}>
+      {/* Top Strip */}
+      <div className="w-full h-16 border border-gray-700 rounded-lg mb-4 mx-auto mt-4 max-w-[95%]">
+        <div className="h-full flex items-center justify-between px-4">
+          <h1 className="text-xl font-bold text-white">Solana Token Tracker</h1>
+          
+          <div className="flex items-center space-x-2">
+            {isLoggedIn ? (
+              <>
+                <span className="text-sm text-gray-300">Merhaba, {username}</span>
+                <button
+                  onClick={() => router.push('/wallets')}
+                  className="px-3 py-1 bg-[#2a3a4f] border border-gray-700 rounded-md hover:bg-[#3a4a5f] text-sm"
+                >
+                  Cüzdanlarım
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="px-3 py-1 bg-[#c8ec64] text-[#1b2839] rounded-md hover:bg-[#b8dc54] text-sm font-medium"
+                >
+                  Çıkış Yap
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="px-3 py-1 bg-[#2a3a4f] border border-gray-700 rounded-md hover:bg-[#3a4a5f] text-sm"
+                >
+                  Giriş Yap
+                </Link>
+                <Link
+                  href="/register"
+                  className="px-3 py-1 bg-[#c8ec64] text-[#1b2839] rounded-md hover:bg-[#b8dc54] text-sm font-medium"
+                >
+                  Kayıt Ol
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      <main className="px-4 max-w-[95%] mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-10 gap-4">
+          {/* Left Column - Modules (30%) */}
+          <div className="lg:col-span-3 space-y-4">
+            {/* Top Row - Module 1 and 2 side by side */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Module 1 */}
+              <div className="bg-[#2a3a4f] border border-gray-700 rounded-lg aspect-square flex items-center justify-center">
+                <div className="text-center p-4">
+                  <h3 className="text-lg font-semibold text-[#c8ec64]">Module 1</h3>
+                  <p className="text-sm text-gray-300 mt-2">Coming soon</p>
+                </div>
+              </div>
+              
+              {/* Module 2 */}
+              <div className="bg-[#2a3a4f] border border-gray-700 rounded-lg aspect-square flex items-center justify-center">
+                <div className="text-center p-4">
+                  <h3 className="text-lg font-semibold text-[#c8ec64]">Module 2</h3>
+                  <p className="text-sm text-gray-300 mt-2">Coming soon</p>
+                </div>
+              </div>
+            </div>
             
-            <div className="mb-8">
-              <WalletMultiButton className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-200" />
+            {/* Bottom Row - Module 3 horizontal */}
+            <div className="bg-[#2a3a4f] border border-gray-700 rounded-lg h-64 flex items-center justify-center">
+              <div className="text-center p-4 w-full">
+                <h3 className="text-lg font-semibold text-[#c8ec64]">Module 3</h3>
+                <p className="text-sm text-gray-300 mt-2">Coming soon</p>
+                <div className="mt-4 p-3 bg-[#1b2839] rounded-lg">
+                  <ul className="text-left space-y-2 text-xs">
+                    <li className="flex items-center">
+                      <span className="mr-2 text-[#c8ec64]">•</span>
+                      <span>Advanced token analytics</span>
+                    </li>
+                    <li className="flex items-center">
+                      <span className="mr-2 text-[#c8ec64]">•</span>
+                      <span>Price alerts</span>
+                    </li>
+                    <li className="flex items-center">
+                      <span className="mr-2 text-[#c8ec64]">•</span>
+                      <span>Portfolio tracking</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
             </div>
           </div>
-
-          {connected ? (
-            <div className="bg-gray-800 bg-opacity-50 rounded-xl p-6 backdrop-blur-sm">
-              <h2 className="text-2xl font-bold mb-4">Cüzdan Tokenleri</h2>
+          
+          {/* Right Column - Module 4 (70%) */}
+          <div className="lg:col-span-7 bg-[#2a3a4f] border border-gray-700 rounded-lg p-4">
+            <h2 className="text-xl font-bold mb-4 text-white">Module 4</h2>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-10 gap-4">
+              {/* Module 5 - Watchlist (30% of Module 4) */}
+              <div className="lg:col-span-3 bg-[#243447] border border-gray-700 rounded-lg p-4">
+                <h3 className="text-lg font-semibold mb-3 text-[#c8ec64]">Watchlist (Module 5)</h3>
+                <Watchlist />
+              </div>
               
-              {loading ? (
-                <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
-                </div>
-              ) : error ? (
-                <div className="bg-red-500 bg-opacity-20 border border-red-500 text-red-100 px-4 py-3 rounded-lg">
-                  {error}
-                </div>
-              ) : tokens.length > 0 ? (
-                <TokenList tokens={tokens} onSelectToken={handleTokenSelect} />
-              ) : (
-                <div className="text-center py-8 text-gray-400">
-                  <p>Cüzdanınızda token bulunamadı.</p>
-                </div>
-              )}
+              {/* Module 6 - Buy-Sell (70% of Module 4) */}
+              <div className="lg:col-span-7 bg-[#243447] border border-gray-700 rounded-lg p-4">
+                <h3 className="text-lg font-semibold mb-3 text-[#c8ec64]">Buy-Sell (Module 6)</h3>
+                <BuySellModule />
+              </div>
             </div>
-          ) : (
-            <div className="text-center py-12 bg-gray-800 bg-opacity-50 rounded-xl backdrop-blur-sm">
-              <p className="text-xl mb-6">Tokenlerinizi görüntülemek için cüzdanınızı bağlayın.</p>
-              <img 
-                src="/connect-wallet.svg" 
-                alt="Connect Wallet" 
-                className="mx-auto h-48 opacity-70"
-              />
-            </div>
-          )}
-        </main>
-
-        <Footer />
-      </div>
-    </WalletContextProvider>
+          </div>
+        </div>
+      </main>
+      
+      <footer className="bg-[#1b2839] mt-8 max-w-[95%] mx-auto">
+        <div className="py-4 px-4 text-center text-xs text-gray-400">
+          <p>Built using Jupiter API</p>
+        </div>
+      </footer>
+    </div>
   );
 }
